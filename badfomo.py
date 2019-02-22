@@ -1,7 +1,6 @@
 import matplotlib
 matplotlib.use('Agg')
 
-#fuck prophet
 import pandas as pd
 import numpy as np
 from fbprophet import Prophet
