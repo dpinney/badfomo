@@ -1,9 +1,13 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import pandas as pd
 import numpy as np
 from fbprophet import Prophet
 from matplotlib import pyplot as plt
 import cPickle as pickle
 import os
+
 
 FILENAME = 'indata - lex ky temperature.csv'
 BACKUP_NAME = 'out - clean_forecast.csv'
@@ -29,8 +33,7 @@ if not os.path.isfile(BACKUP_NAME):
 	future = m.make_future_dataframe(periods=0)
 	forecast = m.predict(future)
 	# Merge in the historical data.
-	forecast['y'] = [float(x) for x in df['y']]
-	forecast['outlier'] = [False for x in xrange(len(forecast))]
+	forecast['y'] = df.y.astype(float)
 	# Backup the model.
 	forecast.to_csv(BACKUP_NAME)
 else:
@@ -39,12 +42,11 @@ else:
 
 # Outliers.
 print 'FINDING OUTLIERS!'
-for index, row in forecast.iterrows():
-	yVal = float(row['y'])
-	yHigh = float(row['yhat_upper'])
-	yLow = float(row['yhat_lower'])
-	if (yVal > yHigh) or (yVal < yLow):
-		forecast.at[index,'outlier'] = True
+cols = ['y', 'yhat', 'yhat_upper', 'yhat_lower']
+forecast[cols] = forecast[cols].astype(float)
+forecast['outlier'] = (forecast.y > forecast.yhat_upper) | (forecast.y < forecast.yhat_lower)
+
+
 print 'Interval Width for Outliers:', INTERVAL_WIDTH
 print 'Frame Rows:', len(forecast.index)
 print 'Percent Outlying:', float(forecast.outlier.sum()) / len(forecast.index)
@@ -55,10 +57,10 @@ ax = fig.add_subplot(111)
 forecast_t = [np.datetime64(x) for x in forecast['ds']]
 inliers = [(r[1] if not r[0] else None) for r in zip(forecast['outlier'], forecast['y'])]
 outliers = [(r[1] if r[0] else None) for r in zip(forecast['outlier'], forecast['y'])]
-ax.plot(forecast_t, forecast['yhat'], ls='-', c='#0072B2', label='prediction')
-ax.plot(forecast_t, forecast['y'], 'k.', label='measurement')
-ax.plot(forecast_t, outliers, 'r.', label='outlier')
-ax.fill_between(forecast_t, forecast['yhat_lower'], forecast['yhat_upper'], color='#0072B2', alpha=0.2, label='detection interval')
+ax.plot(forecast_t, forecast.yhat, ls='-', c='#0072B2', label='prediction')
+ax.plot(forecast_t, forecast.y, 'k.', label='measurement')
+ax.plot(forecast_t, forecast.outlier, 'r.', label='outlier')
+ax.fill_between(forecast_t, forecast.yhat_lower, forecast.yhat_upper, color='#0072B2', alpha=0.2, label='detection interval')
 ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
 ax.set_xlabel('ds')
 ax.set_ylabel('y')
